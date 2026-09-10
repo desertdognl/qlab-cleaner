@@ -1,0 +1,9 @@
+.DS_Store
+dist/
+bin/
+Examples/
+.cursor/
+Source/
+**/.CLIMain.swift
+*.swp
+.idea
