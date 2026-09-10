@@ -2,11 +2,17 @@
 
 Alle noemenswaardige wijzigingen in QLab Cleaner.
 
+## 1.18.1 — 2026-09-10
+
+Kleine correctie (patch).
+
+- App-icoon update
+
 ## 1.18.0 — 2026-09-10
 
 Nieuwe functie (minor).
 
-- Eigen app-icoon in Dock en Finder. Elke build vervangt de kopie in Programma’s. Distributie via een DMG: sleep de app naar Programma’s, zonder Terminal. Oudere lokale DMGs in `dist/` worden gewist.
+- Eigen app-icoon in Dock en Finder.
 
 ## 1.17.0 — 2026-09-10
 

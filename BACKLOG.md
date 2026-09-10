@@ -28,6 +28,7 @@ CSV-export en QLab 4 doen we niet.
 - 1.16.1 modernere taalkeuze en look
 - 1.17.0 optioneel `.qlab5backup` meelezen; relinken in QLab
 - 1.18.0 app-icoon, kopie in Programma’s, DMG voor distributie
+- 1.18.1 icoon als check / clean / trash
 
 ## Volgende
 
