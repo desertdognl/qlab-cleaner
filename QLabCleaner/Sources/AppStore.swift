@@ -213,7 +213,8 @@ final class AppStore: ObservableObject {
         let skipDisarmed = ignoreDisarmed
         let readBackups = includeBackups
 
-        DispatchQueue.global(qos: .userInitiated).async {
+        let throttle = ProgressThrottle()
+        DispatchQueue.global(qos: .utility).async {
             do {
                 let result = try Analyzer.analyze(
                     workspace: workspace,
@@ -224,9 +225,9 @@ final class AppStore: ObservableObject {
                     ignoreDisarmed: skipDisarmed,
                     includeBackups: readBackups,
                     progress: { key, count in
-                        DispatchQueue.main.async {
-                            self.progressKey = key
-                            self.progressCount = count
+                        throttle.update(key, count) { message, value in
+                            self.progressKey = message
+                            self.progressCount = value
                         }
                     }
                 )
@@ -352,6 +353,20 @@ final class AppStore: ObservableObject {
             modeMismatchWarning = L10n.t("mode.mismatch.external")
         default:
             modeMismatchWarning = nil
+        }
+    }
+}
+
+private final class ProgressThrottle {
+    private var lastFlush: CFAbsoluteTime = 0
+    private let interval: CFAbsoluteTime = 0.2
+
+    func update(_ key: String, _ count: Int, apply: @escaping (String, Int) -> Void) {
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - lastFlush >= interval else { return }
+        lastFlush = now
+        DispatchQueue.main.async {
+            apply(key, count)
         }
     }
 }

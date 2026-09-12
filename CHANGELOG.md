@@ -2,6 +2,18 @@
 
 Alle noemenswaardige wijzigingen in QLab Cleaner.
 
+## 1.18.3 — 2026-09-12
+
+Kleine correctie (patch).
+
+- Duplicaten op bestandsnaam, niet op video-inhoud. De app leest media niet meer in; nodig is wat in de `.qlab5` staat.
+
+## 1.18.2 — 2026-09-12
+
+Kleine correctie (patch).
+
+- Grote shows blijven bruikbaar: de app leest video’s in stukken en hasht alleen bestanden die even groot zijn, in plaats van tientallen GB in één keer.
+
 ## 1.18.1 — 2026-09-10
 
 Kleine correctie (patch).
@@ -9,7 +21,7 @@ Kleine correctie (patch).
 - App-icoon update
 
 ## 1.18.0 — 2026-09-10
-
+als 
 Nieuwe functie (minor).
 
 - Eigen app-icoon in Dock en Finder.

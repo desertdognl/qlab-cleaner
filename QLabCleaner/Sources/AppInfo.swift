@@ -2,7 +2,7 @@ import Foundation
 
 enum AppInfo {
     static let name = "QLab Cleaner"
-    static let version = "1.18.1"
+    static let version = "1.18.3"
     static let versionLabel = "v\(version)"
     static let bundleIdentifier = "com.ddtools.qlabcleaner"
     static let coffeeURL = URL(string: "https://buymeacoffee.com/desertdog")!

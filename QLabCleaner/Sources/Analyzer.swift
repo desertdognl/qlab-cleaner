@@ -1,5 +1,4 @@
 import Foundation
-import CryptoKit
 
 enum Analyzer {
     static let ignoredFileNames: Set<String> = [".DS_Store", "Icon\r", "Icon"]
@@ -20,14 +19,21 @@ enum Analyzer {
         progress?("progress.matching", scanned.count)
         let protectedRoots = protectedFolders.map { $0.standardizedFileURL.path.lowercased() }
         let referenced = activeReferences(workspace.referencedFiles, ignoreDisarmed: ignoreDisarmed)
+        let lookup = ReferenceLookup(referenced: referenced, workspaceDirectory: workspace.directory)
 
         var used: [FileMatch] = []
         var unused: [FileMatch] = []
         var protectedSkipped: [FileMatch] = []
         var claimedKeys: Set<String> = []
+        var folderCounts: [String: Int] = [:]
+        var folderBytes: [String: Int64] = [:]
 
-        for file in scanned {
-            if let reference = match(file: file, referenced: referenced, workspaceDirectory: workspace.directory) {
+        for (index, file) in scanned.enumerated() {
+            let rootKey = file.scanRoot.standardizedFileURL.path.lowercased()
+            folderCounts[rootKey, default: 0] += 1
+            folderBytes[rootKey, default: 0] += file.size
+
+            if let reference = lookup.match(file) {
                 used.append(FileMatch(file: file, reference: reference, status: .used))
                 claimedKeys.insert(reference.id)
             } else if isProtected(file, roots: protectedRoots, extensions: protectedExtensions) {
@@ -35,13 +41,16 @@ enum Analyzer {
             } else {
                 unused.append(FileMatch(file: file, reference: nil, status: .unused))
             }
+            if index == 0 || (index + 1) % 200 == 0 {
+                progress?("progress.matching", index + 1)
+            }
         }
 
         used.sort { $0.file.fileName.localizedStandardCompare($1.file.fileName) == .orderedAscending }
         unused.sort { $0.file.fileName.localizedStandardCompare($1.file.fileName) == .orderedAscending }
         protectedSkipped.sort { $0.file.fileName.localizedStandardCompare($1.file.fileName) == .orderedAscending }
 
-        annotateDuplicates(&used, &unused, progress: progress)
+        annotateDuplicates(&used, &unused)
 
         let missing = referenced.filter { item in
             !claimedKeys.contains(item.id)
@@ -50,7 +59,8 @@ enum Analyzer {
         var warnings = folderWarnings(
             workspaceDirectory: workspace.directory,
             folders: roots,
-            mode: mode
+            mode: mode,
+            stats: folderStatsMap(counts: folderCounts, bytes: folderBytes)
         )
 
         var backupOnly: [ReferencedMedia] = []
@@ -141,18 +151,35 @@ enum Analyzer {
     static let largeFolderBytes: Int64 = 5 * 1024 * 1024 * 1024
     static let largeFileCount = 2500
 
-    static func folderWarnings(workspaceDirectory: URL, folders: [URL], mode: ProjectMode) -> [String] {
+    static func folderWarnings(
+        workspaceDirectory: URL,
+        folders: [URL],
+        mode: ProjectMode,
+        stats: [String: (count: Int, bytes: Int64)] = [:]
+    ) -> [String] {
         var warnings: [String] = []
         for folder in folders {
             if mode == .externalRefs, !isNearWorkspace(folder, workspaceDirectory: workspaceDirectory) {
                 warnings.append(L10n.t("folders.far", folder.lastPathComponent))
             }
-            let stats = folderStats(for: folder)
-            if stats.bytes >= largeFolderBytes || stats.count >= largeFileCount {
-                warnings.append(L10n.t("folders.large", folder.lastPathComponent, stats.count, ByteFormat.string(stats.bytes)))
+            let key = folder.standardizedFileURL.path.lowercased()
+            let folderStats = stats[key] ?? self.folderStats(for: folder)
+            if folderStats.bytes >= largeFolderBytes || folderStats.count >= largeFileCount {
+                warnings.append(L10n.t("folders.large", folder.lastPathComponent, folderStats.count, ByteFormat.string(folderStats.bytes)))
             }
         }
         return warnings
+    }
+
+    private static func folderStatsMap(
+        counts: [String: Int],
+        bytes: [String: Int64]
+    ) -> [String: (count: Int, bytes: Int64)] {
+        var result: [String: (count: Int, bytes: Int64)] = [:]
+        for (key, count) in counts {
+            result[key] = (count, bytes[key] ?? 0)
+        }
+        return result
     }
 
     static func discoverBundledFolders(in workspaceDirectory: URL) throws -> [URL] {
@@ -213,26 +240,28 @@ enum Analyzer {
 
         var files: [ScannedFile] = []
         for case let url as URL in enumerator {
-            if shouldSkipDirectory(url) {
-                enumerator.skipDescendants()
-                continue
-            }
-            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey])
-            guard values.isRegularFile == true else { continue }
-            if shouldSkipFile(url) { continue }
+            try autoreleasepool {
+                if shouldSkipDirectory(url) {
+                    enumerator.skipDescendants()
+                    return
+                }
+                let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey])
+                guard values.isRegularFile == true else { return }
+                if shouldSkipFile(url) { return }
 
-            let relative = relativePath(of: url, to: root)
-            files.append(
-                ScannedFile(
-                    url: url.standardizedFileURL,
-                    scanRoot: root,
-                    relativePath: relative,
-                    size: Int64(values.fileSize ?? 0),
-                    modifiedAt: values.contentModificationDate ?? .distantPast
+                let relative = relativePath(of: url, to: root)
+                files.append(
+                    ScannedFile(
+                        url: url.standardizedFileURL,
+                        scanRoot: root,
+                        relativePath: relative,
+                        size: Int64(values.fileSize ?? 0),
+                        modifiedAt: values.contentModificationDate ?? .distantPast
+                    )
                 )
-            )
-            if files.count == 1 || files.count % 50 == 0 {
-                progress?("progress.scanning", files.count)
+                if files.count == 1 || files.count % 80 == 0 {
+                    progress?("progress.scanning", files.count)
+                }
             }
         }
         if !files.isEmpty {
@@ -241,31 +270,52 @@ enum Analyzer {
         return files
     }
 
-    private static func match(file: ScannedFile, referenced: [ReferencedMedia], workspaceDirectory: URL) -> ReferencedMedia? {
-        let filePath = standardized(file.url.path)
+    private struct ReferenceLookup {
+        let resolvedPaths: [String: ReferencedMedia]
+        let relatives: [String: ReferencedMedia]
+        let lastKnown: [String: ReferencedMedia]
+        let names: [String: [ReferencedMedia]]
 
-        for ref in referenced {
-            if !ref.relativePath.isEmpty {
-                let resolved = standardized(resolvePath(ref.relativePath, relativeTo: workspaceDirectory).path)
-                if pathsEqual(filePath, resolved) { return ref }
-
-                let relativeLower = ref.relativePath.lowercased()
-                if filePath.lowercased().hasSuffix("/" + relativeLower) { return ref }
-                if file.relativePath.lowercased() == relativeLower { return ref }
+        init(referenced: [ReferencedMedia], workspaceDirectory: URL) {
+            var resolvedPaths: [String: ReferencedMedia] = [:]
+            var relatives: [String: ReferencedMedia] = [:]
+            var lastKnown: [String: ReferencedMedia] = [:]
+            var names: [String: [ReferencedMedia]] = [:]
+            for ref in referenced {
+                if !ref.relativePath.isEmpty {
+                    let resolved = Analyzer.standardized(
+                        Analyzer.resolvePath(ref.relativePath, relativeTo: workspaceDirectory).path
+                    ).lowercased()
+                    resolvedPaths[resolved] = ref
+                    relatives[ref.relativePath.lowercased()] = ref
+                }
+                if !ref.lastKnownPath.isEmpty {
+                    lastKnown[Analyzer.standardized(ref.lastKnownPath).lowercased()] = ref
+                }
+                names[ref.fileName.lowercased(), default: []].append(ref)
             }
+            self.resolvedPaths = resolvedPaths
+            self.relatives = relatives
+            self.lastKnown = lastKnown
+            self.names = names
+        }
 
-            if !ref.lastKnownPath.isEmpty, pathsEqual(filePath, standardized(ref.lastKnownPath)) {
+        func match(_ file: ScannedFile) -> ReferencedMedia? {
+            let filePath = Analyzer.standardized(file.url.path)
+            let lower = filePath.lowercased()
+            if let ref = resolvedPaths[lower] { return ref }
+
+            let relativeLower = file.relativePath.lowercased()
+            if !relativeLower.isEmpty, let ref = relatives[relativeLower] { return ref }
+            for (relative, ref) in relatives where lower.hasSuffix("/" + relative) {
                 return ref
             }
-        }
+            if let ref = lastKnown[lower] { return ref }
 
-        let sameName = referenced.filter {
-            $0.fileName.compare(file.fileName, options: [.caseInsensitive]) == .orderedSame
+            let sameName = names[file.fileName.lowercased()] ?? []
+            if sameName.count == 1 { return sameName[0] }
+            return nil
         }
-        if sameName.count == 1 {
-            return sameName[0]
-        }
-        return nil
     }
 
     private static func isNearWorkspace(_ folder: URL, workspaceDirectory: URL) -> Bool {
@@ -281,9 +331,29 @@ enum Analyzer {
     }
 
     static func folderStats(for root: URL) -> (count: Int, bytes: Int64) {
-        (try? scanFiles(in: root)).map { files in
-            (files.count, files.reduce(0) { $0 + $1.size })
-        } ?? (0, 0)
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else { return (0, 0) }
+
+        var count = 0
+        var bytes: Int64 = 0
+        for case let url as URL in enumerator {
+            autoreleasepool {
+                if shouldSkipDirectory(url) {
+                    enumerator.skipDescendants()
+                    return
+                }
+                let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+                guard values?.isRegularFile == true else { return }
+                if shouldSkipFile(url) { return }
+                count += 1
+                bytes += Int64(values?.fileSize ?? 0)
+            }
+        }
+        return (count, bytes)
     }
 
     private static func shouldSkipFile(_ url: URL) -> Bool {
@@ -357,35 +427,22 @@ enum Analyzer {
 
     private static func annotateDuplicates(
         _ used: inout [FileMatch],
-        _ unused: inout [FileMatch],
-        progress: ((String, Int) -> Void)?
+        _ unused: inout [FileMatch]
     ) {
         let all = used + unused
         guard !all.isEmpty else { return }
-        var hashes: [String: String] = [:]
-        for (index, match) in all.enumerated() {
-            if index == 0 || (index + 1) % 4 == 0 {
-                progress?("progress.hashing", index + 1)
-            }
-            if let hash = sha256(of: match.file.url) {
-                hashes[match.file.url.path] = hash
-            }
-        }
-        progress?("progress.hashing", all.count)
 
-        var byHash: [String: [FileMatch]] = [:]
+        var byName: [String: [FileMatch]] = [:]
         for match in all {
-            guard let hash = hashes[match.file.url.path] else { continue }
-            byHash[hash, default: []].append(match)
+            byName[match.file.fileName.lowercased(), default: []].append(match)
         }
 
         func peers(for match: FileMatch) -> [String] {
-            guard let hash = hashes[match.file.url.path],
-                  let group = byHash[hash],
+            guard let group = byName[match.file.fileName.lowercased()],
                   group.count > 1 else { return [] }
             return group
                 .filter { $0.file.url.path != match.file.url.path }
-                .map(\.file.fileName)
+                .map(\.file.relativePath)
         }
 
         for index in used.indices {
@@ -394,17 +451,5 @@ enum Analyzer {
         for index in unused.indices {
             unused[index].duplicateNames = peers(for: unused[index])
         }
-    }
-
-    private static func sha256(of url: URL) -> String? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        var hasher = SHA256()
-        while true {
-            let chunk = handle.readData(ofLength: 1024 * 1024)
-            if chunk.isEmpty { break }
-            hasher.update(data: chunk)
-        }
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 }

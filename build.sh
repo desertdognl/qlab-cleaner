@@ -36,7 +36,6 @@ struct CLIMain {
 EOF
 
 swiftc -O -target "$TARGET" -sdk "$SDK" \
-  -framework CryptoKit \
   -o "$ROOT/bin/qlab-parse" \
   "${SHARED[@]}" \
   "$SRC/ParseCLI.swift" \
@@ -55,7 +54,7 @@ rm -rf "$APP"
 mkdir -p "$BIN" "$RESOURCES"
 
 swiftc -O -parse-as-library -target "$TARGET" -sdk "$SDK" \
-  -framework SwiftUI -framework AppKit -framework Foundation -framework UniformTypeIdentifiers -framework Quartz -framework CryptoKit \
+  -framework SwiftUI -framework AppKit -framework Foundation -framework UniformTypeIdentifiers -framework Quartz \
   -o "$BIN/QLabCleaner" \
   "${SHARED[@]}" \
   "$SRC/Theme.swift" \

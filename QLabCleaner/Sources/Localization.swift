@@ -158,7 +158,7 @@ private let english: [String: String] = [
     "results.reveal": "Show in Finder",
     "results.selectHelp": "Click to select, space bar for Quick Look",
     "results.usageHelp": "Times used in the QLab workspace",
-    "results.duplicate": "Same content as %@",
+    "results.duplicate": "Same name as %@",
     "results.duplicates": "Duplicates",
     "results.totalBackups": "Backups",
     "results.trashOne": "Move 1 file to the Trash?",
@@ -184,7 +184,7 @@ private let english: [String: String] = [
 
     "progress.scanning": "Scanning folders… %d files",
     "progress.matching": "Matching %d files to the workspace…",
-    "progress.hashing": "Comparing file contents… %d files",
+    "progress.hashing": "Checking possible duplicates… %d files",
     "progress.backups": "Reading backups… %d files",
     "backups.parseFailed": "Could not read backup “%@”.",
 
@@ -288,7 +288,7 @@ private let dutch: [String: String] = [
     "results.reveal": "Toon in Finder",
     "results.selectHelp": "Klik om te selecteren, spatie voor voorvertoning",
     "results.usageHelp": "Aantal keren gebruikt in de QLab-workspace",
-    "results.duplicate": "Dezelfde inhoud als %@",
+    "results.duplicate": "Dezelfde naam als %@",
     "results.duplicates": "Duplicaten",
     "results.totalBackups": "Backups",
     "results.trashOne": "1 bestand naar de prullenmand?",
@@ -314,7 +314,7 @@ private let dutch: [String: String] = [
 
     "progress.scanning": "Mappen scannen… %d bestanden",
     "progress.matching": "%d bestanden koppelen aan de workspace…",
-    "progress.hashing": "Inhoud vergelijken… %d bestanden",
+    "progress.hashing": "Mogelijke duplicaten controleren… %d bestanden",
     "progress.backups": "Backups lezen… %d bestanden",
     "backups.parseFailed": "Backup “%@” kon niet worden gelezen.",
 
@@ -418,7 +418,7 @@ private let german: [String: String] = [
     "results.reveal": "Im Finder zeigen",
     "results.selectHelp": "Klicken zum Auswählen, Leertaste für Quick Look",
     "results.usageHelp": "Wie oft im QLab-Workspace verwendet",
-    "results.duplicate": "Gleicher Inhalt wie %@",
+    "results.duplicate": "Gleicher Name wie %@",
     "results.duplicates": "Duplikate",
     "results.totalBackups": "Backups",
     "results.trashOne": "1 Datei in den Papierkorb?",
@@ -444,7 +444,7 @@ private let german: [String: String] = [
 
     "progress.scanning": "Ordner werden gelesen… %d Dateien",
     "progress.matching": "%d Dateien werden dem Workspace zugeordnet…",
-    "progress.hashing": "Inhalt vergleichen… %d Dateien",
+    "progress.hashing": "Mögliche Duplikate prüfen… %d Dateien",
     "progress.backups": "Backups werden gelesen… %d Dateien",
     "backups.parseFailed": "Backup “%@” konnte nicht gelesen werden.",
 
@@ -548,7 +548,7 @@ private let french: [String: String] = [
     "results.reveal": "Afficher dans le Finder",
     "results.selectHelp": "Cliquer pour sélectionner, espace pour Aperçu rapide",
     "results.usageHelp": "Nombre d’utilisations dans l’espace QLab",
-    "results.duplicate": "Même contenu que %@",
+    "results.duplicate": "Même nom que %@",
     "results.duplicates": "Doublons",
     "results.totalBackups": "Sauvegardes",
     "results.trashOne": "Mettre 1 fichier à la corbeille ?",
@@ -574,7 +574,7 @@ private let french: [String: String] = [
 
     "progress.scanning": "Lecture des dossiers… %d fichiers",
     "progress.matching": "Correspondance de %d fichiers avec l’espace…",
-    "progress.hashing": "Comparaison du contenu… %d fichiers",
+    "progress.hashing": "Vérification des doublons possibles… %d fichiers",
     "progress.backups": "Lecture des sauvegardes… %d fichiers",
     "backups.parseFailed": "Impossible de lire la sauvegarde « %@ ».",
 

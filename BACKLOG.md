@@ -29,6 +29,8 @@ CSV-export en QLab 4 doen we niet.
 - 1.17.0 optioneel `.qlab5backup` meelezen; relinken in QLab
 - 1.18.0 app-icoon, kopie in Programma’s, DMG voor distributie
 - 1.18.1 icoon als check / clean / trash
+- 1.18.2 grote shows: scannen in stukken, geen hash van unieke video’s
+- 1.18.3 duplicaten op naam; geen inhoud meer lezen
 
 ## Volgende
 
